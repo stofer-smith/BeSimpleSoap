@@ -84,12 +84,28 @@ class SoapClient extends \SoapClient
     protected $soapKernel = null;
 
     /**
+     * Hobson's specific cred fields
+     */
+    /**
+     * clientName
+     *
+     * @var \BeSimple\SoapClient\clientName
+     */
+    protected $clientName = null;
+    /**
+     * passKey
+     *
+     * @var \BeSimple\SoapClient\passKey
+     */
+    protected $passKey = null;
+   
+    /**
      * Constructor.
      *
      * @param string               $wsdl    WSDL file
      * @param array(string=>mixed) $options Options array
      */
-    public function __construct($wsdl, array $options = array())
+    public function __construct($wsdl, array $options = array(), array $credentials = array())
     {
         // tracing enabled: store last request/response header and body
         if (isset($options['trace']) && $options['trace'] === true) {
@@ -99,6 +115,10 @@ class SoapClient extends \SoapClient
         if (isset($options['soap_version'])) {
             $this->soapVersion = $options['soap_version'];
         }
+        
+        // Set clientName and passKey
+        $this->clientName = $credentials['clientName'];        
+        $this->passKey = $credentials['passKey'];
 
         $this->curl = new Curl($options);
 
@@ -147,8 +167,40 @@ class SoapClient extends \SoapClient
         $location = $soapRequest->getLocation();
         $content = $soapRequest->getContent();
 
+        if (strstr($content,'GetAllAttributes'))
+        {
+            $content = '<?xml version="1.0" encoding="UTF-8"?>
+                    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://connect2.askadmissions.net/webservices/">
+                       <soapenv:Header/>
+                       <soapenv:Body>
+                          <web:GetAllAttributes>
+                             <!--Optional:-->
+                             <web:ClientName>'.$this->clientName.'</web:ClientName>
+                             <!--Optional:-->
+                             <web:PassKey>'.$this->passKey.'</web:PassKey>
+                             <!--Optional:-->
+                          </web:GetAllAttributes>
+                       </soapenv:Body>
+                    </soapenv:Envelope>';
+        }
+        else if (strstr($content,'GetContactCount'))
+        {
+            $content = '<?xml version="1.0" encoding="UTF-8"?>
+                    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://connect2.askadmissions.net/webservices/">
+                       <soapenv:Header/>
+                       <soapenv:Body>
+                          <web:GetContactCount>
+                             <!--Optional:-->
+                             <web:ClientName>'.$this->clientName.'</web:ClientName>
+                             <!--Optional:-->
+                             <web:PassKey>'.$this->passKey.'</web:PassKey>
+                             <!--Optional:-->
+                          </web:GetContactCount>
+                       </soapenv:Body>
+                    </soapenv:Envelope>';
+        }        
+        
         $headers = $this->filterRequestHeaders($soapRequest, $headers);
-
         $options = $this->filterRequestOptions($soapRequest);
 
         // execute HTTP request with cURL
